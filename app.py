@@ -16,8 +16,15 @@ page = st.sidebar.radio("Go to:", ["Overview", "EDA", "Cluster Insight", "Recomm
 # Load dataset
 @st.cache_data
 def load_data():
-    df = pd.read_csv("flight_cleaned.csv")
+    df = pd.read_csv("Flight_cleaned.csv")
     return df
+@st.cache_data
+def load_data():
+    try:
+        return pd.read_csv("flight_cleaned.csv")
+    except FileNotFoundError:
+        st.error("❌ File 'flight_cleaned.csv' tidak ditemukan. Silakan upload ke repository.")
+        return pd.DataFrame()
 
 df = load_data()
 
