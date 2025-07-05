@@ -5,6 +5,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from PIL import Image
+import os
 
 # Page config
 st.set_page_config(page_title="Flight Segmentation", page_icon="✈️", layout="wide")
@@ -13,23 +14,25 @@ st.set_page_config(page_title="Flight Segmentation", page_icon="✈️", layout=
 st.sidebar.title("📁 Navigation")
 page = st.sidebar.radio("Go to:", ["Overview", "EDA", "Cluster Insight", "Recommendation", "Contact"])
 
-# Load dataset
-@st.cache_data
-def load_data():
-    df = pd.read_csv("Flight_cleaned.csv")
-    return df
+# Load dataset with error handling
 @st.cache_data
 def load_data():
     try:
-        return pd.read_csv("flight_cleaned.csv")
-    except FileNotFoundError:
-        st.error("❌ File 'flight_cleaned.csv' tidak ditemukan. Silakan upload ke repository.")
-        return pd.DataFrame()
-
+        df = pd.read_csv("Flight_cleaned.csv")
+        return df
 df = load_data()
 
+# Tambahkan kolom 'route' jika memungkinkan
+if not df.empty and 'route' not in df.columns:
+    if 'source_city' in df.columns and 'destination_city' in df.columns:
+        df['route'] = df['source_city'] + " → " + df['destination_city']
+
 # Load framework image
-framework_img = Image.open("framework_slide.jpeg")
+if os.path.exists("framework_slide.jpeg"):
+    framework_img = Image.open("framework_slide.jpeg")
+else:
+    framework_img = None
+    st.warning("⚠️ Gambar framework_slide.jpeg tidak ditemukan.")
 
 # Pages
 if page == "Overview":
@@ -43,7 +46,10 @@ if page == "Overview":
     """)
 
     st.subheader("🧠 Analytical Framework")
-    st.image(framework_img, caption="CRISP-DM & Gartner Analytics Model", use_column_width=True)
+    if framework_img:
+        st.image(framework_img, caption="CRISP-DM & Gartner Analytics Model", use_column_width=True)
+    else:
+        st.info("Gambar framework belum tersedia.")
 
     st.subheader("📊 Dataset Overview")
     st.dataframe(df.head())
@@ -51,39 +57,37 @@ if page == "Overview":
 elif page == "EDA":
     st.title("📊 Exploratory Data Analysis")
 
-    st.subheader("1. Distribution by Airline")
-    fig1, ax1 = plt.subplots()
-    sns.countplot(data=df, x='airline', order=df['airline'].value_counts().index, ax=ax1)
-    plt.xticks(rotation=45)
-    st.pyplot(fig1)
+    if df.empty:
+        st.warning("Tidak ada data yang bisa dianalisis.")
+    else:
+        st.subheader("1. Distribution by Airline")
+        fig1, ax1 = plt.subplots()
+        sns.countplot(data=df, x='airline', order=df['airline'].value_counts().index, ax=ax1)
+        plt.xticks(rotation=45)
+        st.pyplot(fig1)
 
-    st.subheader("2. Price Distribution by Class")
-    fig2, ax2 = plt.subplots()
-    sns.boxplot(data=df, x='class', y='price', ax=ax2)
-    st.pyplot(fig2)
+        st.subheader("2. Price Distribution by Class")
+        fig2, ax2 = plt.subplots()
+        sns.boxplot(data=df, x='class', y='price', ax=ax2)
+        st.pyplot(fig2)
 
-    # Tambahkan kolom route jika belum ada
-    if 'route' not in df.columns:
-        df['route'] = df['source_city'] + " → " + df['destination_city']
-
-    # Grouping dan visualisasi
-    avg_price_route = df.groupby('route')['price'].mean().sort_values(ascending=False).head(10)
-    st.bar_chart(avg_price_route)
-
-    st.subheader("3. Average Price by Route")
-    avg_price_route = df.groupby('route')['price'].mean().sort_values(ascending=False).head(10)
-    st.bar_chart(avg_price_route)
+        st.subheader("3. Average Price by Route")
+        avg_price_route = df.groupby('route')['price'].mean().sort_values(ascending=False).head(10)
+        st.bar_chart(avg_price_route)
 
 elif page == "Cluster Insight":
     st.title("🔎 Cluster Insight & Interpretation")
 
-    st.markdown("""
-    Hasil clustering menunjukkan 4 segmen penumpang:
-    - **Cluster 0**: Last-minute mid-range travelers
-    - **Cluster 1**: Budget leisure planners
-    - **Cluster 2**: Premium long-haul travelers
-    - **Cluster 3**: Budget long-stay travelers
-    """)
+    st.subheader("📊 Distribusi Segmen (Pie Chart)")
+    if 'cluster' in df.columns:
+        cluster_counts = df['cluster'].value_counts().sort_index()
+        fig3, ax3 = plt.subplots()
+        ax3.pie(cluster_counts.values, labels=[f"Cluster {i}" for i in cluster_counts.index],
+                autopct='%1.1f%%', startangle=90, counterclock=False)
+        ax3.axis('equal')
+        st.pyplot(fig3)
+    else:
+        st.info("Kolom 'cluster' belum tersedia dalam dataset.")
 
     st.subheader("📌 Rangkuman Cluster")
     cluster_summary = pd.DataFrame({
@@ -93,6 +97,14 @@ elif page == "Cluster Insight":
         "Days Left": [14.38, 38.16, 25.79, 24.72]
     })
     st.dataframe(cluster_summary)
+
+    st.markdown("""
+    **Interpretasi Segmentasi:**
+    - **Cluster 0**: Last-minute mid-range travelers  
+    - **Cluster 1**: Budget leisure planners  
+    - **Cluster 2**: Premium long-haul travelers  
+    - **Cluster 3**: Budget long-stay travelers  
+    """)
 
 elif page == "Recommendation":
     st.title("💡 Strategic Recommendations")
