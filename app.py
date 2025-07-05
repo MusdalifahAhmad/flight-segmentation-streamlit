@@ -7,22 +7,22 @@ import seaborn as sns
 from PIL import Image
 import os
 
-# Page config
 st.set_page_config(page_title="Flight Segmentation", page_icon="✈️", layout="wide")
 
-# Sidebar
 st.sidebar.title("📁 Navigation")
 page = st.sidebar.radio("Go to:", ["Overview", "EDA", "Cluster Insight", "Recommendation", "Contact"])
 
-# Load dataset with error handling
-@st.cache_data
-def load_data():
-    try:
-        df = pd.read_csv("Flight_cleaned.csv")
-        return df
-df = load_data()
+# ✅ Upload CSV file
+uploaded_file = st.file_uploader("📤 Upload your CSV file", type="csv")
 
-# Tambahkan kolom 'route' jika memungkinkan
+if uploaded_file is not None:
+    df = pd.read_csv(uploaded_file)
+    st.success("✅ File uploaded and data loaded!")
+else:
+    df = pd.DataFrame()
+    st.warning("⚠️ Harap upload file terlebih dahulu.")
+
+# Tambahkan kolom 'route'
 if not df.empty and 'route' not in df.columns:
     if 'source_city' in df.columns and 'destination_city' in df.columns:
         df['route'] = df['source_city'] + " → " + df['destination_city']
@@ -32,7 +32,6 @@ if os.path.exists("framework_slide.jpeg"):
     framework_img = Image.open("framework_slide.jpeg")
 else:
     framework_img = None
-    st.warning("⚠️ Gambar framework_slide.jpeg tidak ditemukan.")
 
 # Pages
 if page == "Overview":
@@ -52,7 +51,10 @@ if page == "Overview":
         st.info("Gambar framework belum tersedia.")
 
     st.subheader("📊 Dataset Overview")
-    st.dataframe(df.head())
+    if not df.empty:
+        st.dataframe(df.head())
+    else:
+        st.info("Silakan upload file untuk melihat data.")
 
 elif page == "EDA":
     st.title("📊 Exploratory Data Analysis")
